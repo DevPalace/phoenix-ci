@@ -6,10 +6,10 @@ export type HitDeps = {
   path: string
 }
 export type Hit = {
-  type: 'effect'
-  discoverTargets: string
+  type: 'ci-work-unit'
+  findWork: string
   attrPath: string
-  deps: {[key: string]: HitDeps}
+  findWorkDeps: {[key: string]: HitDeps}
 }
 
 export type Targets = {
@@ -32,18 +32,18 @@ const hitDepsDecorator: Decoder<HitDeps> = object({
 })
 
 export const hitDecorator: Decoder<Hit> = object({
-  type: constant('effect'),
-  discoverTargets: string(),
+  type: constant('ci-work-unit'),
+  findWork: string(),
   attrPath: string(),
-  deps: dict(hitDepsDecorator)
+  findWorkDeps: dict(hitDepsDecorator)
 })
 
 export const checkedHitDecorator: Decoder<CheckedHit> = object({
-  type: constant('effect'),
-  discoverTargets: string(),
+  type: constant('ci-work-unit'),
+  findWork: string(),
   attrPath: string(),
   targets: targetsDecorator,
-  deps: dict(hitDepsDecorator)
+  findWorkDeps: dict(hitDepsDecorator)
 })
 
 export const workUnitDecorator: Decoder<WorkUnit> = object({

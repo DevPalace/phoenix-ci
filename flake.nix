@@ -7,18 +7,18 @@
       pkgs = nixpkgs.legacyPackages.${system};
 
       mkEffectWithDeps = drv: {
-        type = "effect";
+        type = "ci-work-unit";
         inherit (drv) drvPath;
         inherit drv;
-        deps = {
+        findWorkDeps = {
           inherit (pkgs) hello;
         };
 
-        discoverTargets = ''
-          await execUtils.execCommandPipeOutput(target.deps.hello.path + "/bin/hello", [])
-          const isUncached = await nix.isUncachedDrv(target.drvPath)
+        findWork = ''
+          await execUtils.execCommandPipeOutput(self.findWorkDeps.hello.path + "/bin/hello", [])
+          const isUncached = await nix.isUncachedDrv(self.drvPath)
           return isUncached
-            ? { build: [`''${target.attrPath}.drv`] }
+            ? { build: [`''${self.attrPath}.drv`] }
             : {}
         '';
 

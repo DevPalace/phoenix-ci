@@ -19,34 +19,34 @@ let
       else if count + (length list) > len then len - count
       else length list);
 
-  # Drv/Effect handling
-  mkDrvEffect = drv: {
+  # Drv/WorkUnit handling
+  mkDrvWorkUnit = drv: {
     inherit (drv) drvPath;
-    type = "effect";
-    discoverTargets = ''
-      const isUncached = await nix.isUncachedDrv(target.drvPath)
+    type = "ci-work-unit";
+    findWork = ''
+      const isUncached = await nix.isUncachedDrv(self.drvPath)
       return isUncached
-        ? { build: [target.attrPath] }
+        ? { build: [self.attrPath] }
         : {}
     '';
   };
 
 
-  mapEffect = baseAttrPath: name: effect: effect // {
+  mapWorkUnit = baseAttrPath: name: workUnit: workUnit // {
     attrPath = "${baseAttrPath}.${name}";
-    discoverTargets = if isPath effect.discoverTargets then readFile effect.discoverTargets else effect.discoverTargets;
-    deps =
-      if hasAttr "deps" effect then
-        mapAttrs (_: it: { inherit (it) drvPath; path = it.outPath; }) effect.deps
+    findWork = if isPath workUnit.findWork then readFile workUnit.findWork else workUnit.findWork;
+    findWorkDeps =
+      if hasAttr "findWorkDeps" workUnit then
+        mapAttrs (_: it: { inherit (it) drvPath; path = it.outPath; }) workUnit.findWorkDeps
       else { };
   };
 
   mapTarget = baseAttrPath: name: value:
     if (value.type or "") == "derivation" then
-      mapEffect baseAttrPath name (mkDrvEffect value)
-    else if (value.type or "") == "effect" then
-      mapEffect baseAttrPath name value
-    else throw "Unsupported target '${name}' format. Accepted types are derivations and effects";
+      mapWorkUnit baseAttrPath name (mkDrvWorkUnit value)
+    else if (value.type or "") == "ci-work-unit" then
+      mapWorkUnit baseAttrPath name value
+    else throw "Unsupported target '${name}' format. Accepted types are derivations and ci-work-unit";
 
 
   # Discovery
@@ -66,7 +66,7 @@ let
     };
 
 
-  # We `findAttribute` and convert them to effects using `mapTarget`
+  # We `findAttribute` and convert them to work units using `mapTarget`
   getHits = attrPath:
     let
       foundAttrs = findAttribute flakeOutputs attrPath "";

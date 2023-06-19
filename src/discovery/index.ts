@@ -22,8 +22,8 @@ export const evalFlake = async (flakePath: string, attrPaths: string[]): Promise
 
 const handleHitDeps = async (hits: Hit[]): Promise<Hit[]> => {
   const hitsWithDeps = hits.map(async hit => {
-    if (hit.deps) {
-      const drvs = Object.values(hit.deps).map(it => it.drvPath)
+    if (hit.findWorkDeps) {
+      const drvs = Object.values(hit.findWorkDeps).map(it => it.drvPath)
       await buildDrvs(drvs)
     }
     return hit

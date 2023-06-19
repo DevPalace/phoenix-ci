@@ -196,8 +196,8 @@ const evalFlake = (flakePath, attrPaths) => __awaiter(void 0, void 0, void 0, fu
 exports.evalFlake = evalFlake;
 const handleHitDeps = (hits) => __awaiter(void 0, void 0, void 0, function* () {
     const hitsWithDeps = hits.map((hit) => __awaiter(void 0, void 0, void 0, function* () {
-        if (hit.deps) {
-            const drvs = Object.values(hit.deps).map(it => it.drvPath);
+        if (hit.findWorkDeps) {
+            const drvs = Object.values(hit.findWorkDeps).map(it => it.drvPath);
             yield (0, nix_1.buildDrvs)(drvs);
         }
         return hit;
@@ -368,12 +368,12 @@ const nix = __importStar(__nccwpck_require__(7808));
 const execUtils = __importStar(__nccwpck_require__(7438));
 const types_1 = __nccwpck_require__(8164);
 const boilerplate = (body) => `
-  return async (target, core, nix, execUtils) => {
+  return async (self, core, nix, execUtils) => {
     ${body}
   }
 `;
 const getTargets = (hit) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield Function(boilerplate(hit.discoverTargets))()(hit, core, nix, execUtils);
+    const result = yield Function(boilerplate(hit.findWork))()(hit, core, nix, execUtils);
     return types_1.targetsDecorator.runWithException(result);
 });
 exports.getTargets = getTargets;
@@ -512,17 +512,17 @@ const hitDepsDecorator = (0, json_type_validation_1.object)({
     path: (0, json_type_validation_1.string)()
 });
 exports.hitDecorator = (0, json_type_validation_1.object)({
-    type: (0, json_type_validation_1.constant)('effect'),
-    discoverTargets: (0, json_type_validation_1.string)(),
+    type: (0, json_type_validation_1.constant)('ci-work-unit'),
+    findWork: (0, json_type_validation_1.string)(),
     attrPath: (0, json_type_validation_1.string)(),
-    deps: (0, json_type_validation_1.dict)(hitDepsDecorator)
+    findWorkDeps: (0, json_type_validation_1.dict)(hitDepsDecorator)
 });
 exports.checkedHitDecorator = (0, json_type_validation_1.object)({
-    type: (0, json_type_validation_1.constant)('effect'),
-    discoverTargets: (0, json_type_validation_1.string)(),
+    type: (0, json_type_validation_1.constant)('ci-work-unit'),
+    findWork: (0, json_type_validation_1.string)(),
     attrPath: (0, json_type_validation_1.string)(),
     targets: exports.targetsDecorator,
-    deps: (0, json_type_validation_1.dict)(hitDepsDecorator)
+    findWorkDeps: (0, json_type_validation_1.dict)(hitDepsDecorator)
 });
 exports.workUnitDecorator = (0, json_type_validation_1.object)({
     targets: exports.targetsDecorator,
