@@ -8,6 +8,7 @@ import {buildDrvs} from '../nix'
 
 export const evalFlake = async (flakePath: string, attrPaths: string[]): Promise<Hit[]> => {
   const nixyAttrPaths = `[${attrPaths.map(it => `"${it}"`).join(' ')}]`
+  const evalScriptPath: string = core.getInput('evalScriptPath', {required: true})
 
   const result = await execCommandPipeStderr('nix', [
     'eval',
@@ -15,7 +16,7 @@ export const evalFlake = async (flakePath: string, attrPaths: string[]): Promise
     '--show-trace',
     '--json',
     '--expr',
-    `import ./src/eval.nix "${flakePath}" ${nixyAttrPaths}`
+    `import ${evalScriptPath} "${flakePath}" ${nixyAttrPaths}`
   ])
   return await handleHitDeps(JSON.parse(result.stdout))
 }

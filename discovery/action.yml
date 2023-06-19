@@ -3,6 +3,10 @@ description: 'Provide a description here'
 author: 'Your name or organization here'
 
 inputs:
+  evalScriptPath:
+    description: "Path of nix flake evaluator"
+    default: ${{ github.action_path }}/src/eval.nix
+    required: true
   attrPaths:
     description: "List of paths to search for hits"
     required: true
