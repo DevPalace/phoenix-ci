@@ -1,6 +1,7 @@
 # phoenix-ci
 
 [Implementation example can be found here](https://github.com/DevPalace/phoenix-ci-example)
+
 [Job execution example](https://github.com/DevPalace/phoenix-ci/actions/runs/5315712099)
 
 **Features:**
