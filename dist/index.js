@@ -183,13 +183,14 @@ const jsEval_1 = __nccwpck_require__(1009);
 const nix_1 = __nccwpck_require__(7808);
 const evalFlake = (flakePath, attrPaths) => __awaiter(void 0, void 0, void 0, function* () {
     const nixyAttrPaths = `[${attrPaths.map(it => `"${it}"`).join(' ')}]`;
+    const evalScriptPath = core.getInput('evalScriptPath', { required: true });
     const result = yield (0, execUtils_1.execCommandPipeStderr)('nix', [
         'eval',
         '--impure',
         '--show-trace',
         '--json',
         '--expr',
-        `import ./src/eval.nix "${flakePath}" ${nixyAttrPaths}`
+        `import ${evalScriptPath} "${flakePath}" ${nixyAttrPaths}`
     ]);
     return yield handleHitDeps(JSON.parse(result.stdout));
 });
