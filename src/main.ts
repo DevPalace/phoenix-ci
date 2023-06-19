@@ -1,18 +1,22 @@
 import * as core from '@actions/core'
-import {wait} from './wait'
+import {runDiscovery} from './discovery'
+import {runWorker} from './worker'
 
 async function run(): Promise<void> {
+  const type: string = core.getInput('type')
+
   try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
-
-    core.setOutput('time', new Date().toTimeString())
+    if (type === 'discovery') {
+      await runDiscovery()
+    } else if (type === 'worker') {
+      await runWorker()
+    } else {
+      core.setFailed(`Unsupported action type "${type}"`)
+    }
   } catch (error) {
+    console.error(error)
     if (error instanceof Error) core.setFailed(error.message)
+    if (error instanceof String) core.setFailed(error as string)
   }
 }
 

@@ -1,0 +1,22 @@
+name: 'Your name here'
+description: 'Provide a description here'
+author: 'Your name or organization here'
+
+inputs:
+  target:
+    description: "which target to execute"
+    required: true
+  type:
+    description: "action variation"
+    default: worker
+    required: true
+  nixStoreCachingEnabled:
+    description: "Should enable /nix/store caching"
+    default: true
+    required: true
+  nixEvalCacheKey:
+    description: "Optional nix eval cache key"
+    required: false
+runs:
+  using: 'node16'
+  main: '../dist/index.js'

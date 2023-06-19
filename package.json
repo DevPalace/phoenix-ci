@@ -9,8 +9,11 @@
     "format": "prettier --write '**/*.ts'",
     "format-check": "prettier --check '**/*.ts'",
     "lint": "eslint src/**/*.ts",
-    "package": "ncc build --source-map --license licenses.txt",
+    "lint-fix": "prettier --write '**/*.ts' ; eslint --fix src/**/*.ts",
+    "package": "npm run build && ncc build --source-map --license licenses.txt",
     "test": "jest",
+    "build-test": "npm run build && jest",
+    "precommit": "npm run lint-fix ; npm run test && npm run package",
     "all": "npm run build && npm run format && npm run lint && npm run package && npm test"
   },
   "repository": {
@@ -25,19 +28,127 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.10.0"
+    "@actions/cache": "^3.2.1",
+    "@actions/core": "^1.10.0",
+    "@actions/http-client": "^2.1.0",
+    "@mojotech/json-type-validation": "^3.1.0"
   },
   "devDependencies": {
-    "@types/node": "^18.16.3",
-    "@typescript-eslint/parser": "^5.59.2",
+    "@types/node": "^20.3.1",
+    "@typescript-eslint/parser": "^5.59.9",
     "@vercel/ncc": "^0.36.1",
-    "eslint": "^8.39.0",
+    "eslint": "^8.42.0",
     "eslint-plugin-github": "^4.7.0",
     "eslint-plugin-jest": "^27.2.1",
     "jest": "^29.5.0",
     "js-yaml": "^4.1.0",
     "prettier": "^2.8.8",
     "ts-jest": "^29.1.0",
-    "typescript": "^5.0.4"
+    "typescript": "^5.1.3"
+  },
+  "jest": {
+    "clearMocks": true,
+    "moduleFileExtensions": [
+      "js",
+      "ts"
+    ],
+    "testMatch": [
+      "**/*.test.ts"
+    ],
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "verbose": true
+  },
+  "prettier": {
+    "printWidth": 120,
+    "tabWidth": 2,
+    "useTabs": false,
+    "semi": false,
+    "singleQuote": true,
+    "trailingComma": "none",
+    "bracketSpacing": false,
+    "arrowParens": "avoid"
+  },
+  "eslintConfig": {
+    "plugins": [
+      "jest",
+      "@typescript-eslint"
+    ],
+    "extends": [
+      "plugin:github/recommended"
+    ],
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+      "ecmaVersion": 9,
+      "sourceType": "module",
+      "project": "./tsconfig.json"
+    },
+    "rules": {
+      "github/no-then": "off",
+      "no-console": "off",
+      "i18n-text/no-en": "off",
+      "eslint-comments/no-use": "off",
+      "import/no-namespace": "off",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/explicit-member-accessibility": [
+        "error",
+        {
+          "accessibility": "no-public"
+        }
+      ],
+      "@typescript-eslint/no-require-imports": "error",
+      "@typescript-eslint/array-type": "error",
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/ban-ts-comment": "error",
+      "camelcase": "off",
+      "@typescript-eslint/consistent-type-assertions": "error",
+      "@typescript-eslint/explicit-function-return-type": [
+        "error",
+        {
+          "allowExpressions": true
+        }
+      ],
+      "@typescript-eslint/func-call-spacing": [
+        "error",
+        "never"
+      ],
+      "@typescript-eslint/no-array-constructor": "error",
+      "@typescript-eslint/no-empty-interface": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-extraneous-class": "error",
+      "@typescript-eslint/no-for-in-array": "error",
+      "@typescript-eslint/no-inferrable-types": "error",
+      "@typescript-eslint/no-misused-new": "error",
+      "@typescript-eslint/no-namespace": "error",
+      "@typescript-eslint/no-non-null-assertion": "warn",
+      "@typescript-eslint/no-unnecessary-qualifier": "error",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "@typescript-eslint/no-useless-constructor": "error",
+      "@typescript-eslint/no-var-requires": "error",
+      "@typescript-eslint/prefer-for-of": "warn",
+      "@typescript-eslint/prefer-function-type": "warn",
+      "@typescript-eslint/prefer-includes": "error",
+      "@typescript-eslint/prefer-string-starts-ends-with": "error",
+      "@typescript-eslint/promise-function-async": "error",
+      "@typescript-eslint/require-array-sort-compare": "error",
+      "@typescript-eslint/restrict-plus-operands": "error",
+      "semi": "off",
+      "@typescript-eslint/semi": [
+        "error",
+        "never"
+      ],
+      "@typescript-eslint/type-annotation-spacing": "error",
+      "@typescript-eslint/unbound-method": "error"
+    },
+    "globals": {
+      "NodeJS": true
+    },
+    "env": {
+      "node": true,
+      "es6": true,
+      "jest/globals": true
+    }
   }
 }

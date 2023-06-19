@@ -1,0 +1,30 @@
+name: 'Your name here'
+description: 'Provide a description here'
+author: 'Your name or organization here'
+
+inputs:
+  attrPaths:
+    description: "List of paths to search for hits"
+    required: true
+  type:
+    description: "action variation"
+    default: discovery
+    required: true
+  githubToken:
+    description: "Github token"
+    default: ${{ github.token }}
+    required: true
+  nixStoreCachingEnabled:
+    description: "Should enable /nix/store caching"
+    default: true
+    required: true
+  nixEvalCacheCachingEnabled:
+    description: "Should enable .config/nix caching"
+    default: true
+    required: true
+outputs:
+  hits:
+    description: "JSON object containing CI actions to run."
+runs:
+  using: 'node16'
+  main: '../dist/index.js'
