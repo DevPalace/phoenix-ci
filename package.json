@@ -10,7 +10,7 @@
     "format-check": "prettier --check '**/*.ts'",
     "lint": "eslint src/**/*.ts",
     "lint-fix": "prettier --write '**/*.ts' ; eslint --fix src/**/*.ts",
-    "package": "npm run build && ncc build --source-map --license licenses.txt",
+    "package": "npm run build && ncc build --source-map --license licenses.txt && cp ./src/discovery/eval.nix ./dist",
     "test": "jest",
     "build-test": "npm run build && jest",
     "precommit": "npm run lint-fix ; npm run test && npm run package",

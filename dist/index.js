@@ -183,14 +183,13 @@ const jsEval_1 = __nccwpck_require__(1009);
 const nix_1 = __nccwpck_require__(7808);
 const evalFlake = (flakePath, attrPaths) => __awaiter(void 0, void 0, void 0, function* () {
     const nixyAttrPaths = `[${attrPaths.map(it => `"${it}"`).join(' ')}]`;
-    const evalScriptPath = core.getInput('evalScriptPath', { required: true });
     const result = yield (0, execUtils_1.execCommandPipeStderr)('nix', [
         'eval',
         '--impure',
         '--show-trace',
         '--json',
         '--expr',
-        `import ${evalScriptPath} "${flakePath}" ${nixyAttrPaths}`
+        `import ${__dirname}/eval.nix "${flakePath}" ${nixyAttrPaths}`
     ]);
     return yield handleHitDeps(JSON.parse(result.stdout));
 });
@@ -426,7 +425,6 @@ const worker_1 = __nccwpck_require__(7399);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const type = core.getInput('type');
-        console.log(process.env);
         try {
             if (type === 'discovery') {
                 yield (0, discovery_1.runDiscovery)();

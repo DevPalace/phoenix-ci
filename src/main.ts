@@ -4,7 +4,6 @@ import {runWorker} from './worker'
 
 async function run(): Promise<void> {
   const type: string = core.getInput('type')
-  console.log(process.env)
 
   try {
     if (type === 'discovery') {
