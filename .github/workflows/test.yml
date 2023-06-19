@@ -1,24 +1,65 @@
-name: 'build-test'
+name: 'Action Test'
 on: # rebuild any PRs and main branch changes
   pull_request:
   push:
     branches:
-      - main
-      - 'releases/*'
+      - master
+      - develop
+  workflow_dispatch:
+
 
 jobs:
-  build: # make sure build/ci work properly
+  discovery: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      hits: ${{ steps.discovery.outputs.hits }}
     steps:
       - uses: actions/checkout@v3
-      - run: |
-          npm install
-      - run: |
-          npm run all
-  test: # make sure the action works on a clean machine without building
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v22
         with:
-          milliseconds: 1000
+          nix_conf: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+            trusted-users = runner
+            access-tokens = github.com=${{ github.token }}
+      - uses: ./discovery
+        id: discovery
+        with:
+          attrPaths: ci.x86_64-linux.default, packages.x86_64-linux
+          nixStoreCachingEnabled: false
+          nixEvalCacheCachingEnabled: false
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  execute-targets:
+    name: "${{ matrix.target.attrPath }}"
+    needs: [discovery]
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.discovery.outputs.hits) }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v22
+        with:
+          nix_conf: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+            trusted-users = runner
+            access-tokens = github.com=${{ github.token }}
+      - uses: ./worker
+        id: worker
+        with:
+          target: ${{ toJSON(matrix.target) }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
