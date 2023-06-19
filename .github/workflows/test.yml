@@ -1,6 +1,7 @@
 name: 'Action Test'
-on: # rebuild any PRs and main branch changes
-  pull_request:
+on:
+  # Executing action on PR's is not supported. Somehow /nix/store cache gets corrupted. Will fix soon
+  #pull_request:
   push:
     branches:
       - master
