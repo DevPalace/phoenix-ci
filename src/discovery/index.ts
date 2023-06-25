@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import {execCommandPipeStderr} from '../execUtils'
-import {getFlakeRef, logTimeTaken} from '../utils'
+import {getFlakeRef, getEvalStoreDir, logTimeTaken} from '../utils'
 import {saveNixEvalCache, restoreNixEvalCache, restoreNixStore, saveNixStore} from '../cacheUtils'
 import {Hit, checkedHitDecorator, CheckedHit, checkedHitToWorkUnit} from '../types'
 import {getTargets} from '../jsEval'
@@ -11,6 +11,8 @@ export const evalFlake = async (flakePath: string, attrPaths: string[]): Promise
 
   const result = await execCommandPipeStderr('nix', [
     'eval',
+    '--eval-store',
+    getEvalStoreDir(),
     '--impure',
     '--show-trace',
     '--json',

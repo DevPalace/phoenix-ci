@@ -39,11 +39,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.restoreNixEvalCache = exports.saveNixEvalCache = exports.restoreNixStore = exports.saveNixStore = exports.getNixEvalCacheDir = void 0;
+exports.restoreEvalStore = exports.saveEvalStore = exports.restoreNixEvalCache = exports.saveNixEvalCache = exports.restoreNixStore = exports.saveNixStore = exports.getNixEvalCacheDir = void 0;
 const cache = __importStar(__nccwpck_require__(3942));
 const core = __importStar(__nccwpck_require__(2186));
 const Path = __importStar(__nccwpck_require__(1017));
 const fs_1 = __nccwpck_require__(7147);
+const utils_1 = __nccwpck_require__(918);
 const env = process.env;
 const isNixEvalCacheCacheingEnabled = () => core.getBooleanInput('nixEvalCacheCachingEnabled', { required: true });
 const isNixStoreCacheingEnabled = () => core.getBooleanInput('nixStoreCachingEnabled', { required: true });
@@ -59,36 +60,36 @@ const getNixEvalCacheDir = () => {
     return xdgCacheHome ? Path.join(xdgCacheHome, 'nix') : Path.join((_a = env.HOME) !== null && _a !== void 0 ? _a : '', '.cache/nix');
 };
 exports.getNixEvalCacheDir = getNixEvalCacheDir;
-// Save/restore caches logic
-const saveNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () {
+const saveCache = (id, path) => __awaiter(void 0, void 0, void 0, function* () {
     if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
-        yield cache.saveCache(['/nix'], getCacheKeys(`nix-store-${id}`)[0]);
+        yield cache.saveCache([path], getCacheKeys(id)[0]);
     }
 });
-exports.saveNixStore = saveNixStore;
-const restoreNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
-        const cacheKey = yield cache.restoreCache(['/nix'], ...getCacheKeys(`nix-store-${id}`));
+const restoreCache = (id, path) => __awaiter(void 0, void 0, void 0, function* () {
+    if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable()) {
+        const cacheKey = yield cache.restoreCache([path], ...getCacheKeys(id));
         core.info(`Cache ${cacheKey} restored`);
     }
 });
+// Save/restore caches logic
+const saveNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () { return saveCache(`nix-store-${id}`, '/nix'); });
+exports.saveNixStore = saveNixStore;
+const restoreNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () { return restoreCache(`nix-store-${id}`, '/nix'); });
 exports.restoreNixStore = restoreNixStore;
 const saveNixEvalCache = () => __awaiter(void 0, void 0, void 0, function* () {
     const dir = (0, exports.getNixEvalCacheDir)();
-    if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && (0, fs_1.existsSync)(dir)) {
-        yield cache.saveCache([dir], getCacheKeys('eval-cache-discovery')[0]);
-    }
+    (0, fs_1.existsSync)(dir) && (yield saveCache('eval-cache-discovery', dir));
 });
 exports.saveNixEvalCache = saveNixEvalCache;
 const restoreNixEvalCache = () => __awaiter(void 0, void 0, void 0, function* () {
     const dir = (0, exports.getNixEvalCacheDir)();
-    if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && dir) {
-        const prefix = 'eval';
-        const cacheKey = yield cache.restoreCache([dir], ...getCacheKeys('eval-cache-discovery'));
-        core.info(`Cache ${cacheKey} restored`);
-    }
+    yield restoreCache('eval-cache-discovery', dir);
 });
 exports.restoreNixEvalCache = restoreNixEvalCache;
+const saveEvalStore = () => __awaiter(void 0, void 0, void 0, function* () { return saveCache('eval-store-discovery', (0, utils_1.getEvalStoreDir)()); });
+exports.saveEvalStore = saveEvalStore;
+const restoreEvalStore = () => __awaiter(void 0, void 0, void 0, function* () { return restoreCache('eval-store-discovery', (0, utils_1.getEvalStoreDir)()); });
+exports.restoreEvalStore = restoreEvalStore;
 
 
 /***/ }),
@@ -143,6 +144,8 @@ const evalFlake = (flakePath, attrPaths) => __awaiter(void 0, void 0, void 0, fu
     const nixyAttrPaths = `[${attrPaths.map(it => `"${it}"`).join(' ')}]`;
     const result = yield (0, execUtils_1.execCommandPipeStderr)('nix', [
         'eval',
+        '--eval-store',
+        (0, utils_1.getEvalStoreDir)(),
         '--impure',
         '--show-trace',
         '--json',
@@ -430,26 +433,34 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.runAll = exports.buildAll = exports.buildDrvs = exports.build = exports.isUncachedDrv = void 0;
 const execUtils_1 = __nccwpck_require__(7438);
+const utils_1 = __nccwpck_require__(918);
 const isUncachedDrv = (drvPath) => __awaiter(void 0, void 0, void 0, function* () {
     return yield (0, execUtils_1.execCommand)('nix-store', ['--realise', '--dry-run', drvPath]).then(it => it.stderr.trim().includes('will be built'));
 });
 exports.isUncachedDrv = isUncachedDrv;
 const build = (flakePath, attribute) => __awaiter(void 0, void 0, void 0, function* () {
-    return yield (0, execUtils_1.execCommandPipeOutput)('nix', ['build', '--no-link', '-L', `${flakePath}#${attribute}`]);
+    return yield (0, execUtils_1.execCommandPipeOutput)('nix', [
+        'build',
+        '--eval-store',
+        (0, utils_1.getEvalStoreDir)(),
+        '--no-link',
+        '-L',
+        `${flakePath}#${attribute}`
+    ]);
 });
 exports.build = build;
 const buildDrvs = (drvPaths) => __awaiter(void 0, void 0, void 0, function* () {
     const targets = drvPaths.map(it => `${it}^*`);
-    return yield (0, execUtils_1.execCommandPipeOutput)('nix', ['build', '--no-link', '-L', ...targets]);
+    return yield (0, execUtils_1.execCommandPipeOutput)('nix', ['build', '--eval-store', (0, utils_1.getEvalStoreDir)(), '--no-link', '-L', ...targets]);
 });
 exports.buildDrvs = buildDrvs;
 const buildAll = (flakePath, attributes) => __awaiter(void 0, void 0, void 0, function* () {
     const targets = attributes.map(it => `${flakePath}#${it}`);
-    return yield (0, execUtils_1.execCommandPipeOutput)('nix', ['build', '--no-link', '-L', ...targets]);
+    return yield (0, execUtils_1.execCommandPipeOutput)('nix', ['build', '--eval-store', (0, utils_1.getEvalStoreDir)(), '--no-link', '-L', ...targets]);
 });
 exports.buildAll = buildAll;
 const runAll = (flakePath, attributes) => __awaiter(void 0, void 0, void 0, function* () {
-    const targets = attributes.map(it => (0, execUtils_1.execCommandPipeOutput)('nix', ['build', '--no-link', '-L', `${flakePath}#${it}`]));
+    const targets = attributes.map(it => (0, execUtils_1.execCommandPipeOutput)('nix', ['build', '--eval-store', (0, utils_1.getEvalStoreDir)(), '--no-link', '-L', `${flakePath}#${it}`]));
     return yield Promise.all(targets);
 });
 exports.runAll = runAll;
@@ -541,9 +552,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.logTimeTaken = exports.getFlakeRef = exports.throwErr = void 0;
+exports.getEvalStoreDir = exports.logTimeTaken = exports.getFlakeRef = exports.throwErr = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const path_1 = __importDefault(__nccwpck_require__(1017));
+const env = process.env;
 const throwErr = (errorMessage) => {
     throw new Error(errorMessage);
 };
@@ -567,6 +579,14 @@ function logTimeTaken(name, fn) {
     });
 }
 exports.logTimeTaken = logTimeTaken;
+const getEvalStoreDir = () => {
+    var _a;
+    const stateBaseDir = env.XDG_STATE_HOME;
+    return stateBaseDir
+        ? path_1.default.join(stateBaseDir, 'nix-eval-store') //
+        : path_1.default.join((_a = env.HOME) !== null && _a !== void 0 ? _a : '', '.local/state/nix-eval-store');
+};
+exports.getEvalStoreDir = getEvalStoreDir;
 
 
 /***/ }),
