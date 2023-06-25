@@ -25,31 +25,33 @@ export const getNixEvalCacheDir = (): string => {
 }
 
 const saveCache = async (id: CacheKeyId, path: string) => {
-  if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
+  if (cache.isFeatureAvailable()) {
     await cache.saveCache([path], getCacheKeys(id)[0])
   }
 }
 
 const restoreCache = async (id: CacheKeyId, path: string) => {
-  if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable()) {
+  if (cache.isFeatureAvailable()) {
     const cacheKey = await cache.restoreCache([path], ...getCacheKeys(id))
     core.info(`Cache ${cacheKey} restored`)
   }
 }
 
 // Save/restore caches logic
-export const saveNixStore = async (id: CacheIdArg) => saveCache(`nix-store-${id}`, '/nix')
+export const saveNixStore = async (id: CacheIdArg) =>
+  isNixStoreCacheingEnabled() && saveCache(`nix-store-${id}`, '/nix')
 
-export const restoreNixStore = async (id: CacheIdArg) => restoreCache(`nix-store-${id}`, '/nix')
+export const restoreNixStore = async (id: CacheIdArg) =>
+  isNixStoreCacheingEnabled() && restoreCache(`nix-store-${id}`, '/nix')
 
 export const saveNixEvalCache = async () => {
   const dir = getNixEvalCacheDir()
-  existsSync(dir) && (await saveCache('eval-cache-discovery', dir))
+  isNixEvalCacheCacheingEnabled() && existsSync(dir) && (await saveCache('eval-cache-discovery', dir))
 }
 
 export const restoreNixEvalCache = async () => {
   const dir = getNixEvalCacheDir()
-  await restoreCache('eval-cache-discovery', dir)
+  isNixEvalCacheCacheingEnabled() && (await restoreCache('eval-cache-discovery', dir))
 }
 
 export const saveEvalStore = async () => saveCache('eval-store-discovery', getEvalStoreDir())

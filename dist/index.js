@@ -61,29 +61,29 @@ const getNixEvalCacheDir = () => {
 };
 exports.getNixEvalCacheDir = getNixEvalCacheDir;
 const saveCache = (id, path) => __awaiter(void 0, void 0, void 0, function* () {
-    if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
+    if (cache.isFeatureAvailable()) {
         yield cache.saveCache([path], getCacheKeys(id)[0]);
     }
 });
 const restoreCache = (id, path) => __awaiter(void 0, void 0, void 0, function* () {
-    if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable()) {
+    if (cache.isFeatureAvailable()) {
         const cacheKey = yield cache.restoreCache([path], ...getCacheKeys(id));
         core.info(`Cache ${cacheKey} restored`);
     }
 });
 // Save/restore caches logic
-const saveNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () { return saveCache(`nix-store-${id}`, '/nix'); });
+const saveNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () { return isNixStoreCacheingEnabled() && saveCache(`nix-store-${id}`, '/nix'); });
 exports.saveNixStore = saveNixStore;
-const restoreNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () { return restoreCache(`nix-store-${id}`, '/nix'); });
+const restoreNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () { return isNixStoreCacheingEnabled() && restoreCache(`nix-store-${id}`, '/nix'); });
 exports.restoreNixStore = restoreNixStore;
 const saveNixEvalCache = () => __awaiter(void 0, void 0, void 0, function* () {
     const dir = (0, exports.getNixEvalCacheDir)();
-    (0, fs_1.existsSync)(dir) && (yield saveCache('eval-cache-discovery', dir));
+    isNixEvalCacheCacheingEnabled() && (0, fs_1.existsSync)(dir) && (yield saveCache('eval-cache-discovery', dir));
 });
 exports.saveNixEvalCache = saveNixEvalCache;
 const restoreNixEvalCache = () => __awaiter(void 0, void 0, void 0, function* () {
     const dir = (0, exports.getNixEvalCacheDir)();
-    yield restoreCache('eval-cache-discovery', dir);
+    isNixEvalCacheCacheingEnabled() && (yield restoreCache('eval-cache-discovery', dir));
 });
 exports.restoreNixEvalCache = restoreNixEvalCache;
 const saveEvalStore = () => __awaiter(void 0, void 0, void 0, function* () { return saveCache('eval-store-discovery', (0, utils_1.getEvalStoreDir)()); });
