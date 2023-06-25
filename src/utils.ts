@@ -1,11 +1,16 @@
 import * as core from '@actions/core'
+import path from 'path'
 
 export const throwErr = (errorMessage: string): never => {
   throw new Error(errorMessage)
 }
 
-export const getWorkspacePath = (): string => {
-  return process.env.GITHUB_WORKSPACE ?? throwErr("'GITHUB_WORKSPACE' env variable not found")
+export const getFlakeRef = (): string => {
+  const flake = core.getInput('flake', {required: true})
+
+  return flake.startsWith('.')
+    ? path.join(process.env.GITHUB_WORKSPACE ?? throwErr("'GITHUB_WORKSPACE' env variable not found"), flake)
+    : flake
 }
 
 export async function logTimeTaken<T>(name: string, fn: () => Promise<T>): Promise<T> {

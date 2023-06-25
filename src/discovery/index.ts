@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import {execCommandPipeStderr} from '../execUtils'
-import {getWorkspacePath, logTimeTaken} from '../utils'
+import {getFlakeRef, logTimeTaken} from '../utils'
 import {saveNixEvalCache, restoreNixEvalCache, restoreNixStore, saveNixStore} from '../cacheUtils'
 import {Hit, checkedHitDecorator, CheckedHit, checkedHitToWorkUnit} from '../types'
 import {getTargets} from '../jsEval'
@@ -31,18 +31,12 @@ const handleHitDeps = async (hits: Hit[]): Promise<Hit[]> => {
   return Promise.all(hitsWithDeps)
 }
 
-export const getHits = async (
-  flakePath: string,
-  attrPaths: string[],
-  onEvalFinish: () => Promise<void>
-): Promise<CheckedHit[]> => {
+export const getHits = async (flakePath: string, attrPaths: string[]): Promise<CheckedHit[]> => {
   const hits = await logTimeTaken('Nix discovery evaluation', async () => evalFlake(flakePath, attrPaths))
 
   core.startGroup('Found Hits')
   core.info(hits.map(it => it.attrPath).join('\n'))
   core.endGroup()
-
-  const onEvalFinishHandle = onEvalFinish() // Execute onEvalFinish and targets filtering in parallel
 
   const result = await logTimeTaken('Searching for work', async () => {
     const hitsHandles = hits.map(async hit =>
@@ -55,17 +49,17 @@ export const getHits = async (
   core.startGroup('Hits to be processed')
   core.info(result.map(it => it.attrPath).join('\n'))
   core.endGroup()
-  await onEvalFinishHandle
   return result
 }
 
 export const runDiscovery = async (): Promise<void> => {
+  process.env.showEnv && console.info(process.env)
   const attrPaths: string[] = core.getInput('attrPaths', {required: true}).split(/,\s*/)
 
   await logTimeTaken('Restore Caches', async () => Promise.all([restoreNixEvalCache(), restoreNixStore('discovery')]))
-  const hits = await getHits(getWorkspacePath(), attrPaths, async () => {
-    await saveNixEvalCache()
+  const hits = await getHits(getFlakeRef(), attrPaths)
+  await logTimeTaken('Save /nix/store', async () => {
+    await Promise.all([saveNixStore('discovery'), saveNixEvalCache()])
   })
-  await logTimeTaken('Save /nix/store', async () => saveNixStore('discovery'))
   core.setOutput('hits', JSON.stringify(hits.map(checkedHitToWorkUnit)))
 }

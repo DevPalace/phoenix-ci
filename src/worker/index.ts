@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import * as nix from '../nix'
 import {workUnitDecorator} from '../types'
-import {getWorkspacePath, logTimeTaken} from '../utils'
+import {getFlakeRef, logTimeTaken} from '../utils'
 import {restoreNixStore, saveNixStore} from '../cacheUtils'
 
 export const runWorker = async (): Promise<void> => {
@@ -9,7 +9,7 @@ export const runWorker = async (): Promise<void> => {
   await logTimeTaken('Restore /nix/store', async () => restoreNixStore(target.attrPath))
   core.startGroup('Execute targets')
   // Execute targets
-  const buildHandle = target.targets.build.length !== 0 ? nix.buildAll(getWorkspacePath(), target.targets.build) : null
+  const buildHandle = target.targets.build.length !== 0 ? nix.buildAll(getFlakeRef(), target.targets.build) : null
   const runHandle = target.targets.run.length !== 0 ? nix.runAll(process.cwd(), target.targets.run) : null
   await Promise.all([buildHandle, runHandle])
   core.endGroup()

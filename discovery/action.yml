@@ -22,6 +22,10 @@ inputs:
     description: "Should enable .config/nix caching"
     default: true
     required: true
+  flake:
+    description: "Flake reference. May be set to path if checkout action is used"
+    default: github:{{ github.repository }}
+    required: true
 outputs:
   hits:
     description: "JSON object containing CI actions to run."

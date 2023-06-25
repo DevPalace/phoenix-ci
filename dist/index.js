@@ -162,12 +162,11 @@ const handleHitDeps = (hits) => __awaiter(void 0, void 0, void 0, function* () {
     }));
     return Promise.all(hitsWithDeps);
 });
-const getHits = (flakePath, attrPaths, onEvalFinish) => __awaiter(void 0, void 0, void 0, function* () {
+const getHits = (flakePath, attrPaths) => __awaiter(void 0, void 0, void 0, function* () {
     const hits = yield (0, utils_1.logTimeTaken)('Nix discovery evaluation', () => __awaiter(void 0, void 0, void 0, function* () { return (0, exports.evalFlake)(flakePath, attrPaths); }));
     core.startGroup('Found Hits');
     core.info(hits.map(it => it.attrPath).join('\n'));
     core.endGroup();
-    const onEvalFinishHandle = onEvalFinish(); // Execute onEvalFinish and targets filtering in parallel
     const result = yield (0, utils_1.logTimeTaken)('Searching for work', () => __awaiter(void 0, void 0, void 0, function* () {
         const hitsHandles = hits.map((hit) => __awaiter(void 0, void 0, void 0, function* () { return types_1.checkedHitDecorator.runWithException(Object.assign(Object.assign({}, hit), { targets: yield (0, jsEval_1.getTargets)(hit) })); }));
         const hitsWithTargets = yield Promise.all(hitsHandles);
@@ -176,17 +175,17 @@ const getHits = (flakePath, attrPaths, onEvalFinish) => __awaiter(void 0, void 0
     core.startGroup('Hits to be processed');
     core.info(result.map(it => it.attrPath).join('\n'));
     core.endGroup();
-    yield onEvalFinishHandle;
     return result;
 });
 exports.getHits = getHits;
 const runDiscovery = () => __awaiter(void 0, void 0, void 0, function* () {
+    process.env.showEnv && console.info(process.env);
     const attrPaths = core.getInput('attrPaths', { required: true }).split(/,\s*/);
     yield (0, utils_1.logTimeTaken)('Restore Caches', () => __awaiter(void 0, void 0, void 0, function* () { return Promise.all([(0, cacheUtils_1.restoreNixEvalCache)(), (0, cacheUtils_1.restoreNixStore)('discovery')]); }));
-    const hits = yield (0, exports.getHits)((0, utils_1.getWorkspacePath)(), attrPaths, () => __awaiter(void 0, void 0, void 0, function* () {
-        yield (0, cacheUtils_1.saveNixEvalCache)();
+    const hits = yield (0, exports.getHits)((0, utils_1.getFlakeRef)(), attrPaths);
+    yield (0, utils_1.logTimeTaken)('Save /nix/store', () => __awaiter(void 0, void 0, void 0, function* () {
+        yield Promise.all([(0, cacheUtils_1.saveNixStore)('discovery'), (0, cacheUtils_1.saveNixEvalCache)()]);
     }));
-    yield (0, utils_1.logTimeTaken)('Save /nix/store', () => __awaiter(void 0, void 0, void 0, function* () { return (0, cacheUtils_1.saveNixStore)('discovery'); }));
     core.setOutput('hits', JSON.stringify(hits.map(types_1.checkedHitToWorkUnit)));
 });
 exports.runDiscovery = runDiscovery;
@@ -538,18 +537,25 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.logTimeTaken = exports.getWorkspacePath = exports.throwErr = void 0;
+exports.logTimeTaken = exports.getFlakeRef = exports.throwErr = void 0;
 const core = __importStar(__nccwpck_require__(2186));
+const path_1 = __importDefault(__nccwpck_require__(1017));
 const throwErr = (errorMessage) => {
     throw new Error(errorMessage);
 };
 exports.throwErr = throwErr;
-const getWorkspacePath = () => {
+const getFlakeRef = () => {
     var _a;
-    return (_a = process.env.GITHUB_WORKSPACE) !== null && _a !== void 0 ? _a : (0, exports.throwErr)("'GITHUB_WORKSPACE' env variable not found");
+    const flake = core.getInput('flake', { required: true });
+    return flake.startsWith('.')
+        ? path_1.default.join((_a = process.env.GITHUB_WORKSPACE) !== null && _a !== void 0 ? _a : (0, exports.throwErr)("'GITHUB_WORKSPACE' env variable not found"), flake)
+        : flake;
 };
-exports.getWorkspacePath = getWorkspacePath;
+exports.getFlakeRef = getFlakeRef;
 function logTimeTaken(name, fn) {
     return __awaiter(this, void 0, void 0, function* () {
         core.startGroup(name);
@@ -614,7 +620,7 @@ const runWorker = () => __awaiter(void 0, void 0, void 0, function* () {
     yield (0, utils_1.logTimeTaken)('Restore /nix/store', () => __awaiter(void 0, void 0, void 0, function* () { return (0, cacheUtils_1.restoreNixStore)(target.attrPath); }));
     core.startGroup('Execute targets');
     // Execute targets
-    const buildHandle = target.targets.build.length !== 0 ? nix.buildAll((0, utils_1.getWorkspacePath)(), target.targets.build) : null;
+    const buildHandle = target.targets.build.length !== 0 ? nix.buildAll((0, utils_1.getFlakeRef)(), target.targets.build) : null;
     const runHandle = target.targets.run.length !== 0 ? nix.runAll(process.cwd(), target.targets.run) : null;
     yield Promise.all([buildHandle, runHandle]);
     core.endGroup();

@@ -16,9 +16,10 @@ const setInput = (name: string, value: string) =>
 //})
 
 test('getTargetsToBeProcessed', async () => {
+  setInput('flake', '.')
   setInput('jobset', 'default')
   setInput('nixStoreCachingEnabled', 'false')
-  const result = await getHits(process.cwd(), discoveryPaths, async () => {})
+  const result = await getHits(process.cwd(), discoveryPaths)
   expect(result.length).toBeGreaterThan(1)
 })
 
