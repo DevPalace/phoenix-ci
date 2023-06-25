@@ -24,7 +24,7 @@ inputs:
     required: true
   flake:
     description: "Flake reference. May be set to path if checkout action is used"
-    default: github:${{ github.repository }}
+    default: github:${{ github.repository }}/${{ github.sha }}
     required: true
 outputs:
   hits:
