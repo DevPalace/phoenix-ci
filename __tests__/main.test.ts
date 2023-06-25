@@ -16,7 +16,6 @@ const setInput = (name: string, value: string) =>
 //})
 
 test('getTargetsToBeProcessed', async () => {
-  setInput('evalScriptPath', './src/eval.nix')
   setInput('jobset', 'default')
   setInput('nixStoreCachingEnabled', 'false')
   const result = await getHits(process.cwd(), discoveryPaths, async () => {})

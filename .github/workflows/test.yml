@@ -30,8 +30,6 @@ jobs:
           attrPaths: ci.x86_64-linux.default, packages.x86_64-linux
           #nixStoreCachingEnabled: false
           #nixEvalCacheCachingEnabled: false
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 
   execute-targets:
     name: "${{ matrix.target.attrPath }}"
@@ -55,6 +53,4 @@ jobs:
         id: worker
         with:
           target: ${{ toJSON(matrix.target) }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 
