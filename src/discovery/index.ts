@@ -1,7 +1,14 @@
 import * as core from '@actions/core'
 import {execCommandPipeStderr} from '../execUtils'
 import {getFlakeRef, getEvalStoreDir, logTimeTaken} from '../utils'
-import {saveNixEvalCache, restoreNixEvalCache, restoreNixStore, saveNixStore} from '../cacheUtils'
+import {
+  saveEvalStore,
+  restoreEvalStore,
+  restoreNixEvalCache,
+  saveNixEvalCache,
+  restoreNixStore,
+  saveNixStore
+} from '../cacheUtils'
 import {Hit, checkedHitDecorator, CheckedHit, checkedHitToWorkUnit} from '../types'
 import {getTargets} from '../jsEval'
 import {buildDrvs} from '../nix'
@@ -58,10 +65,12 @@ export const runDiscovery = async (): Promise<void> => {
   process.env.showEnv && console.info(process.env)
   const attrPaths: string[] = core.getInput('attrPaths', {required: true}).split(/,\s*/)
 
-  await logTimeTaken('Restore Caches', async () => Promise.all([restoreNixEvalCache(), restoreNixStore('discovery')]))
+  await logTimeTaken('Restore Caches', async () =>
+    Promise.all([restoreNixEvalCache(), restoreNixStore('discovery'), restoreEvalStore()])
+  )
   const hits = await getHits(getFlakeRef(), attrPaths)
-  await logTimeTaken('Save /nix/store', async () => {
-    await Promise.all([saveNixStore('discovery'), saveNixEvalCache()])
+  await logTimeTaken('Save caches', async () => {
+    await Promise.all([saveNixStore('discovery'), saveNixEvalCache(), saveEvalStore()])
   })
   core.setOutput('hits', JSON.stringify(hits.map(checkedHitToWorkUnit)))
 }

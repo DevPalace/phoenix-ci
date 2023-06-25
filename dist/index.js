@@ -184,10 +184,10 @@ exports.getHits = getHits;
 const runDiscovery = () => __awaiter(void 0, void 0, void 0, function* () {
     process.env.showEnv && console.info(process.env);
     const attrPaths = core.getInput('attrPaths', { required: true }).split(/,\s*/);
-    yield (0, utils_1.logTimeTaken)('Restore Caches', () => __awaiter(void 0, void 0, void 0, function* () { return Promise.all([(0, cacheUtils_1.restoreNixEvalCache)(), (0, cacheUtils_1.restoreNixStore)('discovery')]); }));
+    yield (0, utils_1.logTimeTaken)('Restore Caches', () => __awaiter(void 0, void 0, void 0, function* () { return Promise.all([(0, cacheUtils_1.restoreNixEvalCache)(), (0, cacheUtils_1.restoreNixStore)('discovery'), (0, cacheUtils_1.restoreEvalStore)()]); }));
     const hits = yield (0, exports.getHits)((0, utils_1.getFlakeRef)(), attrPaths);
-    yield (0, utils_1.logTimeTaken)('Save /nix/store', () => __awaiter(void 0, void 0, void 0, function* () {
-        yield Promise.all([(0, cacheUtils_1.saveNixStore)('discovery'), (0, cacheUtils_1.saveNixEvalCache)()]);
+    yield (0, utils_1.logTimeTaken)('Save caches', () => __awaiter(void 0, void 0, void 0, function* () {
+        yield Promise.all([(0, cacheUtils_1.saveNixStore)('discovery'), (0, cacheUtils_1.saveNixEvalCache)(), (0, cacheUtils_1.saveEvalStore)()]);
     }));
     core.setOutput('hits', JSON.stringify(hits.map(types_1.checkedHitToWorkUnit)));
 });
