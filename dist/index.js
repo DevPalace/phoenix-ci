@@ -39,52 +39,44 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.restoreNixEvalCache = exports.saveNixEvalCache = exports.getNixEvalCacheDir = exports.restoreNixStore = exports.saveNixStore = exports.getCacheId = void 0;
+exports.restoreNixEvalCache = exports.saveNixEvalCache = exports.restoreNixStore = exports.saveNixStore = exports.getNixEvalCacheDir = void 0;
 const cache = __importStar(__nccwpck_require__(3942));
 const core = __importStar(__nccwpck_require__(2186));
 const Path = __importStar(__nccwpck_require__(1017));
 const fs_1 = __nccwpck_require__(7147);
 const env = process.env;
-const CACHE_KEY_TOKENS_SEP = '___';
 const isNixEvalCacheCacheingEnabled = () => core.getBooleanInput('nixEvalCacheCachingEnabled', { required: true });
 const isNixStoreCacheingEnabled = () => core.getBooleanInput('nixStoreCachingEnabled', { required: true });
-const getCacheId = (prefix) => __awaiter(void 0, void 0, void 0, function* () { return [prefix, `${env.RUNNER_OS}/${env.RUNNER_ARCH}`, env.GITHUB_REF_NAME, env.GITHUB_SHA].join(CACHE_KEY_TOKENS_SEP); });
-exports.getCacheId = getCacheId;
-const saveNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
-        const cacheKey = id === undefined ? yield (0, exports.getCacheId)(`store`) : yield (0, exports.getCacheId)(`store/${id}`);
-        yield cache.saveCache(['/nix'], cacheKey);
-    }
-});
-exports.saveNixStore = saveNixStore;
-const getPrimaryCacheKey = (prefix) => {
-    return [prefix, `${env.RUNNER_OS}/${env.RUNNER_ARCH}`, env.GITHUB_REF_NAME, env.GITHUB_SHA].join(CACHE_KEY_TOKENS_SEP);
+const getCacheKeys = (id) => {
+    const keyBase = `${env.RUNNER_OS}-${env.RUNNER_ARCH}-${id}-`;
+    const key = `${keyBase}${env.GITHUB_REF_NAME}-${env.GITHUB_SHA}`;
+    const keyWithoutSha = `${keyBase}${env.GITHUB_REF_NAME}-`;
+    return [key, [keyWithoutSha, keyBase]];
 };
-const getSecondaryCacheKeys = (prefix) => {
-    const a = [prefix, `${env.RUNNER_OS}/${env.RUNNER_ARCH}`, env.GITHUB_REF_NAME, ''].join(CACHE_KEY_TOKENS_SEP);
-    const b = [prefix, `${env.RUNNER_OS}/${env.RUNNER_ARCH}`, ''].join(CACHE_KEY_TOKENS_SEP);
-    return [a, b];
-};
-const restoreNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
-        const prefix = id === undefined ? `store` : `store/${id}`;
-        const cacheKey = yield cache.restoreCache(['/nix'], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix));
-        core.info(`Cache ${cacheKey} restored`);
-    }
-});
-exports.restoreNixStore = restoreNixStore;
-// Eval cache
 const getNixEvalCacheDir = () => {
     var _a;
     const xdgCacheHome = env.XDG_CACHE_HOME;
     return xdgCacheHome ? Path.join(xdgCacheHome, 'nix') : Path.join((_a = env.HOME) !== null && _a !== void 0 ? _a : '', '.cache/nix');
 };
 exports.getNixEvalCacheDir = getNixEvalCacheDir;
+// Save/restore caches logic
+const saveNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
+        yield cache.saveCache(['/nix'], getCacheKeys(`nix-store-${id}`)[0]);
+    }
+});
+exports.saveNixStore = saveNixStore;
+const restoreNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
+        const cacheKey = yield cache.restoreCache(['/nix'], ...getCacheKeys(`nix-store-${id}`));
+        core.info(`Cache ${cacheKey} restored`);
+    }
+});
+exports.restoreNixStore = restoreNixStore;
 const saveNixEvalCache = () => __awaiter(void 0, void 0, void 0, function* () {
     const dir = (0, exports.getNixEvalCacheDir)();
     if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && (0, fs_1.existsSync)(dir)) {
-        const cacheKey = yield (0, exports.getCacheId)('eval');
-        yield cache.saveCache([dir], cacheKey);
+        yield cache.saveCache([dir], getCacheKeys('eval-cache-discovery')[0]);
     }
 });
 exports.saveNixEvalCache = saveNixEvalCache;
@@ -92,7 +84,7 @@ const restoreNixEvalCache = () => __awaiter(void 0, void 0, void 0, function* ()
     const dir = (0, exports.getNixEvalCacheDir)();
     if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && dir) {
         const prefix = 'eval';
-        const cacheKey = yield cache.restoreCache([dir], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix));
+        const cacheKey = yield cache.restoreCache([dir], ...getCacheKeys('eval-cache-discovery'));
         core.info(`Cache ${cacheKey} restored`);
     }
 });
@@ -194,7 +186,7 @@ const runDiscovery = () => __awaiter(void 0, void 0, void 0, function* () {
     const hits = yield (0, exports.getHits)((0, utils_1.getWorkspacePath)(), attrPaths, () => __awaiter(void 0, void 0, void 0, function* () {
         yield (0, cacheUtils_1.saveNixEvalCache)();
     }));
-    yield core.group('Save /nix/store', () => __awaiter(void 0, void 0, void 0, function* () { return (0, cacheUtils_1.saveNixStore)('discovery'); }));
+    yield (0, utils_1.logTimeTaken)('Save /nix/store', () => __awaiter(void 0, void 0, void 0, function* () { return (0, cacheUtils_1.saveNixStore)('discovery'); }));
     core.setOutput('hits', JSON.stringify(hits.map(types_1.checkedHitToWorkUnit)));
 });
 exports.runDiscovery = runDiscovery;

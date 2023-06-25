@@ -4,51 +4,43 @@ import * as Path from 'path'
 import {existsSync} from 'fs'
 
 const env = process.env
-const CACHE_KEY_TOKENS_SEP = '___'
 
 const isNixEvalCacheCacheingEnabled = () => core.getBooleanInput('nixEvalCacheCachingEnabled', {required: true})
 const isNixStoreCacheingEnabled = () => core.getBooleanInput('nixStoreCachingEnabled', {required: true})
 
-export const getCacheId = async (prefix: string) =>
-  [prefix, `${env.RUNNER_OS}/${env.RUNNER_ARCH}`, env.GITHUB_REF_NAME, env.GITHUB_SHA].join(CACHE_KEY_TOKENS_SEP)
+type CacheNixStoreIdArg = string | 'discovery'
+type CacheKeyId = 'eval-store-discovery' | 'eval-cache-discovery' | `nix-store-${CacheNixStoreIdArg}`
 
-export const saveNixStore = async (id: string | undefined) => {
-  if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
-    const cacheKey = id === undefined ? await getCacheId(`store`) : await getCacheId(`store/${id}`)
-
-    await cache.saveCache(['/nix'], cacheKey)
-  }
+const getCacheKeys = (id: CacheKeyId): [string, string[]] => {
+  const keyBase = `${env.RUNNER_OS}-${env.RUNNER_ARCH}-${id}-`
+  const key = `${keyBase}${env.GITHUB_REF_NAME}-${env.GITHUB_SHA}`
+  const keyWithoutSha = `${keyBase}${env.GITHUB_REF_NAME}-`
+  return [key, [keyWithoutSha, keyBase]]
 }
 
-const getPrimaryCacheKey = (prefix: string) => {
-  return [prefix, `${env.RUNNER_OS}/${env.RUNNER_ARCH}`, env.GITHUB_REF_NAME, env.GITHUB_SHA].join(CACHE_KEY_TOKENS_SEP)
-}
-
-const getSecondaryCacheKeys = (prefix: string) => {
-  const a = [prefix, `${env.RUNNER_OS}/${env.RUNNER_ARCH}`, env.GITHUB_REF_NAME, ''].join(CACHE_KEY_TOKENS_SEP)
-  const b = [prefix, `${env.RUNNER_OS}/${env.RUNNER_ARCH}`, ''].join(CACHE_KEY_TOKENS_SEP)
-  return [a, b]
-}
-
-export const restoreNixStore = async (id: string | undefined) => {
-  if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
-    const prefix = id === undefined ? `store` : `store/${id}`
-    const cacheKey = await cache.restoreCache(['/nix'], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix))
-    core.info(`Cache ${cacheKey} restored`)
-  }
-}
-
-// Eval cache
 export const getNixEvalCacheDir = (): string => {
   const xdgCacheHome = env.XDG_CACHE_HOME
   return xdgCacheHome ? Path.join(xdgCacheHome, 'nix') : Path.join(env.HOME ?? '', '.cache/nix')
 }
 
+// Save/restore caches logic
+export const saveNixStore = async (id: CacheNixStoreIdArg) => {
+  if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
+    await cache.saveCache(['/nix'], getCacheKeys(`nix-store-${id}`)[0])
+  }
+}
+
+export const restoreNixStore = async (id: CacheNixStoreIdArg) => {
+  if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
+    const cacheKey = await cache.restoreCache(['/nix'], ...getCacheKeys(`nix-store-${id}`))
+    core.info(`Cache ${cacheKey} restored`)
+  }
+}
+
 export const saveNixEvalCache = async () => {
   const dir = getNixEvalCacheDir()
   if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && existsSync(dir)) {
-    const cacheKey = await getCacheId('eval')
-    await cache.saveCache([dir], cacheKey)
+    await cache.saveCache([dir], getCacheKeys('eval-cache-discovery')[0])
   }
 }
 
@@ -56,7 +48,7 @@ export const restoreNixEvalCache = async () => {
   const dir = getNixEvalCacheDir()
   if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && dir) {
     const prefix = 'eval'
-    const cacheKey = await cache.restoreCache([dir], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix))
+    const cacheKey = await cache.restoreCache([dir], ...getCacheKeys('eval-cache-discovery'))
     core.info(`Cache ${cacheKey} restored`)
   }
 }
