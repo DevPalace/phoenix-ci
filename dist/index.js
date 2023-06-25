@@ -44,7 +44,6 @@ const cache = __importStar(__nccwpck_require__(3942));
 const core = __importStar(__nccwpck_require__(2186));
 const Path = __importStar(__nccwpck_require__(1017));
 const fs_1 = __nccwpck_require__(7147);
-const utils_1 = __nccwpck_require__(918);
 const env = process.env;
 const CACHE_KEY_TOKENS_SEP = '___';
 const isNixEvalCacheCacheingEnabled = () => core.getBooleanInput('nixEvalCacheCachingEnabled', { required: true });
@@ -54,7 +53,7 @@ exports.getCacheId = getCacheId;
 const saveNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () {
     if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
         const cacheKey = id === undefined ? yield (0, exports.getCacheId)(`store`) : yield (0, exports.getCacheId)(`store/${id}`);
-        yield (0, utils_1.logTimeTaken)('saveNixStore', () => cache.saveCache(['/nix'], cacheKey));
+        yield cache.saveCache(['/nix'], cacheKey);
     }
 });
 exports.saveNixStore = saveNixStore;
@@ -69,7 +68,7 @@ const getSecondaryCacheKeys = (prefix) => {
 const restoreNixStore = (id) => __awaiter(void 0, void 0, void 0, function* () {
     if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
         const prefix = id === undefined ? `store` : `store/${id}`;
-        const cacheKey = yield (0, utils_1.logTimeTaken)('restoreNixStore', () => cache.restoreCache(['/nix'], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix)));
+        const cacheKey = yield cache.restoreCache(['/nix'], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix));
         core.info(`Cache ${cacheKey} restored`);
     }
 });
@@ -85,7 +84,7 @@ const saveNixEvalCache = () => __awaiter(void 0, void 0, void 0, function* () {
     const dir = (0, exports.getNixEvalCacheDir)();
     if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && (0, fs_1.existsSync)(dir)) {
         const cacheKey = yield (0, exports.getCacheId)('eval');
-        yield (0, utils_1.logTimeTaken)('saveNixEvalCache', () => cache.saveCache([dir], cacheKey));
+        yield cache.saveCache([dir], cacheKey);
     }
 });
 exports.saveNixEvalCache = saveNixEvalCache;
@@ -93,7 +92,7 @@ const restoreNixEvalCache = () => __awaiter(void 0, void 0, void 0, function* ()
     const dir = (0, exports.getNixEvalCacheDir)();
     if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && dir) {
         const prefix = 'eval';
-        const cacheKey = yield (0, utils_1.logTimeTaken)('restoreNixEvalCache', () => cache.restoreCache([dir], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix)));
+        const cacheKey = yield cache.restoreCache([dir], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix));
         core.info(`Cache ${cacheKey} restored`);
     }
 });
@@ -173,23 +172,29 @@ const handleHitDeps = (hits) => __awaiter(void 0, void 0, void 0, function* () {
 });
 const getHits = (flakePath, attrPaths, onEvalFinish) => __awaiter(void 0, void 0, void 0, function* () {
     const hits = yield (0, utils_1.logTimeTaken)('Nix discovery evaluation', () => __awaiter(void 0, void 0, void 0, function* () { return (0, exports.evalFlake)(flakePath, attrPaths); }));
-    console.info(`Found Hits:\n${hits.map(it => it.attrPath).join('\n')}`);
+    core.startGroup('Found Hits');
+    core.info(hits.map(it => it.attrPath).join('\n'));
+    core.endGroup();
     const onEvalFinishHandle = onEvalFinish(); // Execute onEvalFinish and targets filtering in parallel
-    const hitsHandles = hits.map((hit) => __awaiter(void 0, void 0, void 0, function* () { return types_1.checkedHitDecorator.runWithException(Object.assign(Object.assign({}, hit), { targets: yield (0, jsEval_1.getTargets)(hit) })); }));
-    const hitsWithTargets = yield (0, utils_1.logTimeTaken)('Hit targets discovery', () => __awaiter(void 0, void 0, void 0, function* () { return Promise.all(hitsHandles); }));
+    const result = yield (0, utils_1.logTimeTaken)('Searching for work', () => __awaiter(void 0, void 0, void 0, function* () {
+        const hitsHandles = hits.map((hit) => __awaiter(void 0, void 0, void 0, function* () { return types_1.checkedHitDecorator.runWithException(Object.assign(Object.assign({}, hit), { targets: yield (0, jsEval_1.getTargets)(hit) })); }));
+        const hitsWithTargets = yield Promise.all(hitsHandles);
+        return hitsWithTargets.filter(it => it.targets.run.length !== 0 || it.targets.build.length !== 0);
+    }));
+    core.startGroup('Hits to be processed');
+    core.info(result.map(it => it.attrPath).join('\n'));
+    core.endGroup();
     yield onEvalFinishHandle;
-    const result = hitsWithTargets.filter(it => it.targets.run.length !== 0 || it.targets.build.length !== 0);
-    console.info(`These hits will be processed:\n${result.map(it => it.attrPath).join('\n')}`);
     return result;
 });
 exports.getHits = getHits;
 const runDiscovery = () => __awaiter(void 0, void 0, void 0, function* () {
     const attrPaths = core.getInput('attrPaths', { required: true }).split(/,\s*/);
-    yield Promise.all([(0, cacheUtils_1.restoreNixEvalCache)(), (0, cacheUtils_1.restoreNixStore)('discovery')]);
+    yield (0, utils_1.logTimeTaken)('Restore Caches', () => __awaiter(void 0, void 0, void 0, function* () { return Promise.all([(0, cacheUtils_1.restoreNixEvalCache)(), (0, cacheUtils_1.restoreNixStore)('discovery')]); }));
     const hits = yield (0, exports.getHits)((0, utils_1.getWorkspacePath)(), attrPaths, () => __awaiter(void 0, void 0, void 0, function* () {
         yield (0, cacheUtils_1.saveNixEvalCache)();
     }));
-    (0, cacheUtils_1.saveNixStore)('discovery');
+    yield core.group('Save /nix/store', () => __awaiter(void 0, void 0, void 0, function* () { return (0, cacheUtils_1.saveNixStore)('discovery'); }));
     core.setOutput('hits', JSON.stringify(hits.map(types_1.checkedHitToWorkUnit)));
 });
 exports.runDiscovery = runDiscovery;
@@ -505,10 +510,33 @@ exports.checkedHitToWorkUnit = checkedHitToWorkUnit;
 /***/ }),
 
 /***/ 918:
-/***/ (function(__unused_webpack_module, exports) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -520,6 +548,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.logTimeTaken = exports.getWorkspacePath = exports.throwErr = void 0;
+const core = __importStar(__nccwpck_require__(2186));
 const throwErr = (errorMessage) => {
     throw new Error(errorMessage);
 };
@@ -531,9 +560,11 @@ const getWorkspacePath = () => {
 exports.getWorkspacePath = getWorkspacePath;
 function logTimeTaken(name, fn) {
     return __awaiter(this, void 0, void 0, function* () {
+        core.startGroup(name);
         console.time(name);
         const result = yield fn();
         console.timeEnd(name);
+        core.endGroup();
         return result;
     });
 }
@@ -588,12 +619,14 @@ const utils_1 = __nccwpck_require__(918);
 const cacheUtils_1 = __nccwpck_require__(931);
 const runWorker = () => __awaiter(void 0, void 0, void 0, function* () {
     const target = types_1.workUnitDecorator.runWithException(JSON.parse(core.getInput('target', { required: true })));
-    yield (0, cacheUtils_1.restoreNixStore)(target.attrPath);
+    yield (0, utils_1.logTimeTaken)('Restore /nix/store', () => __awaiter(void 0, void 0, void 0, function* () { return (0, cacheUtils_1.restoreNixStore)(target.attrPath); }));
+    core.startGroup('Execute targets');
     // Execute targets
     const buildHandle = target.targets.build.length !== 0 ? nix.buildAll((0, utils_1.getWorkspacePath)(), target.targets.build) : null;
     const runHandle = target.targets.run.length !== 0 ? nix.runAll(process.cwd(), target.targets.run) : null;
     yield Promise.all([buildHandle, runHandle]);
-    yield (0, cacheUtils_1.saveNixStore)(target.attrPath);
+    core.endGroup();
+    yield (0, utils_1.logTimeTaken)('Save /nix/store', () => __awaiter(void 0, void 0, void 0, function* () { return (0, cacheUtils_1.saveNixStore)(target.attrPath); }));
 });
 exports.runWorker = runWorker;
 

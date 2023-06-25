@@ -37,27 +37,35 @@ export const getHits = async (
   onEvalFinish: () => Promise<void>
 ): Promise<CheckedHit[]> => {
   const hits = await logTimeTaken('Nix discovery evaluation', async () => evalFlake(flakePath, attrPaths))
-  console.info(`Found Hits:\n${hits.map(it => it.attrPath).join('\n')}`)
+
+  core.startGroup('Found Hits')
+  core.info(hits.map(it => it.attrPath).join('\n'))
+  core.endGroup()
 
   const onEvalFinishHandle = onEvalFinish() // Execute onEvalFinish and targets filtering in parallel
-  const hitsHandles = hits.map(async hit =>
-    checkedHitDecorator.runWithException({...hit, targets: await getTargets(hit)})
-  )
-  const hitsWithTargets = await logTimeTaken('Hit targets discovery', async () => Promise.all(hitsHandles))
 
+  const result = await logTimeTaken('Searching for work', async () => {
+    const hitsHandles = hits.map(async hit =>
+      checkedHitDecorator.runWithException({...hit, targets: await getTargets(hit)})
+    )
+    const hitsWithTargets = await Promise.all(hitsHandles)
+    return hitsWithTargets.filter(it => it.targets.run.length !== 0 || it.targets.build.length !== 0)
+  })
+
+  core.startGroup('Hits to be processed')
+  core.info(result.map(it => it.attrPath).join('\n'))
+  core.endGroup()
   await onEvalFinishHandle
-  const result = hitsWithTargets.filter(it => it.targets.run.length !== 0 || it.targets.build.length !== 0)
-  console.info(`These hits will be processed:\n${result.map(it => it.attrPath).join('\n')}`)
   return result
 }
 
 export const runDiscovery = async (): Promise<void> => {
   const attrPaths: string[] = core.getInput('attrPaths', {required: true}).split(/,\s*/)
 
-  await Promise.all([restoreNixEvalCache(), restoreNixStore('discovery')])
+  await logTimeTaken('Restore Caches', async () => Promise.all([restoreNixEvalCache(), restoreNixStore('discovery')]))
   const hits = await getHits(getWorkspacePath(), attrPaths, async () => {
     await saveNixEvalCache()
   })
-  saveNixStore('discovery')
+  await logTimeTaken('Save /nix/store', async () => saveNixStore('discovery'))
   core.setOutput('hits', JSON.stringify(hits.map(checkedHitToWorkUnit)))
 }

@@ -2,7 +2,6 @@ import * as cache from '@actions/cache'
 import * as core from '@actions/core'
 import * as Path from 'path'
 import {existsSync} from 'fs'
-import {logTimeTaken} from './utils'
 
 const env = process.env
 const CACHE_KEY_TOKENS_SEP = '___'
@@ -17,7 +16,7 @@ export const saveNixStore = async (id: string | undefined) => {
   if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
     const cacheKey = id === undefined ? await getCacheId(`store`) : await getCacheId(`store/${id}`)
 
-    await logTimeTaken('saveNixStore', () => cache.saveCache(['/nix'], cacheKey))
+    await cache.saveCache(['/nix'], cacheKey)
   }
 }
 
@@ -34,9 +33,7 @@ const getSecondaryCacheKeys = (prefix: string) => {
 export const restoreNixStore = async (id: string | undefined) => {
   if (isNixStoreCacheingEnabled() && cache.isFeatureAvailable()) {
     const prefix = id === undefined ? `store` : `store/${id}`
-    const cacheKey = await logTimeTaken('restoreNixStore', () =>
-      cache.restoreCache(['/nix'], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix))
-    )
+    const cacheKey = await cache.restoreCache(['/nix'], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix))
     core.info(`Cache ${cacheKey} restored`)
   }
 }
@@ -51,7 +48,7 @@ export const saveNixEvalCache = async () => {
   const dir = getNixEvalCacheDir()
   if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && existsSync(dir)) {
     const cacheKey = await getCacheId('eval')
-    await logTimeTaken('saveNixEvalCache', () => cache.saveCache([dir], cacheKey))
+    await cache.saveCache([dir], cacheKey)
   }
 }
 
@@ -59,9 +56,7 @@ export const restoreNixEvalCache = async () => {
   const dir = getNixEvalCacheDir()
   if (isNixEvalCacheCacheingEnabled() && cache.isFeatureAvailable() && dir) {
     const prefix = 'eval'
-    const cacheKey = await logTimeTaken('restoreNixEvalCache', () =>
-      cache.restoreCache([dir], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix))
-    )
+    const cacheKey = await cache.restoreCache([dir], getPrimaryCacheKey(prefix), getSecondaryCacheKeys(prefix))
     core.info(`Cache ${cacheKey} restored`)
   }
 }
