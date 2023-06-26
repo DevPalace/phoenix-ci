@@ -1,7 +1,6 @@
 import {execCommand, execCommandPipeOutput} from './execUtils'
 
 export const isUncachedDrv = async (drvPath: string): Promise<boolean> => {
-  console.log(drvPath)
   return await execCommand('nix-store', ['--realise', '--dry-run', drvPath]).then(it =>
     it.stderr.trim().includes('will be built')
   )
