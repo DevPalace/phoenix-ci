@@ -428,7 +428,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.runAll = exports.buildAll = exports.buildDrvs = exports.build = exports.isUncachedDrv = void 0;
 const execUtils_1 = __nccwpck_require__(7438);
 const isUncachedDrv = (drvPath) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log(drvPath);
     return yield (0, execUtils_1.execCommand)('nix-store', ['--realise', '--dry-run', drvPath]).then(it => it.stderr.trim().includes('will be built'));
 });
 exports.isUncachedDrv = isUncachedDrv;
