@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import {execCommandPipeStderr} from '../execUtils'
-import {getWorkspacePath, logTimeTaken} from '../utils'
-import {saveNixEvalCache, restoreNixEvalCache, restoreNixStore, saveNixStore} from '../cacheUtils'
+import {getFlakeRef, logTimeTaken} from '../utils'
+import {restoreNixEvalCache, saveNixEvalCache, restoreNixStore, saveNixStore} from '../cacheUtils'
 import {Hit, checkedHitDecorator, CheckedHit, checkedHitToWorkUnit} from '../types'
 import {getTargets} from '../jsEval'
 import {buildDrvs} from '../nix'
@@ -31,33 +31,36 @@ const handleHitDeps = async (hits: Hit[]): Promise<Hit[]> => {
   return Promise.all(hitsWithDeps)
 }
 
-export const getHits = async (
-  flakePath: string,
-  attrPaths: string[],
-  onEvalFinish: () => Promise<void>
-): Promise<CheckedHit[]> => {
+export const getHits = async (flakePath: string, attrPaths: string[]): Promise<CheckedHit[]> => {
   const hits = await logTimeTaken('Nix discovery evaluation', async () => evalFlake(flakePath, attrPaths))
-  console.info(`Found Hits:\n${hits.map(it => it.attrPath).join('\n')}`)
 
-  const onEvalFinishHandle = onEvalFinish() // Execute onEvalFinish and targets filtering in parallel
-  const hitsHandles = hits.map(async hit =>
-    checkedHitDecorator.runWithException({...hit, targets: await getTargets(hit)})
-  )
-  const hitsWithTargets = await logTimeTaken('Hit targets discovery', async () => Promise.all(hitsHandles))
+  core.startGroup('Found Hits')
+  core.info(hits.map(it => it.attrPath).join('\n'))
+  core.endGroup()
 
-  await onEvalFinishHandle
-  const result = hitsWithTargets.filter(it => it.targets.run.length !== 0 || it.targets.build.length !== 0)
-  console.info(`These hits will be processed:\n${result.map(it => it.attrPath).join('\n')}`)
+  const result = await logTimeTaken('Searching for work', async () => {
+    const hitsHandles = hits.map(async hit =>
+      checkedHitDecorator.runWithException({...hit, targets: await getTargets(hit)})
+    )
+    const hitsWithTargets = await Promise.all(hitsHandles)
+    return hitsWithTargets.filter(it => it.targets.run.length !== 0 || it.targets.build.length !== 0)
+  })
+
+  core.startGroup('Hits to be processed')
+  core.info(result.map(it => it.attrPath).join('\n'))
+  core.endGroup()
   return result
 }
 
 export const runDiscovery = async (): Promise<void> => {
+  process.env.debug && console.debug(process.env)
   const attrPaths: string[] = core.getInput('attrPaths', {required: true}).split(/,\s*/)
 
-  await Promise.all([restoreNixEvalCache(), restoreNixStore('discovery')])
-  const hits = await getHits(getWorkspacePath(), attrPaths, async () => {
-    await saveNixEvalCache()
+  await logTimeTaken('Restore Caches', async () => Promise.all([restoreNixEvalCache(), restoreNixStore('discovery')]))
+  const hits = await getHits(getFlakeRef(), attrPaths)
+  await logTimeTaken('Save caches', async () => {
+    await Promise.all([saveNixStore('discovery'), saveNixEvalCache()])
   })
-  saveNixStore('discovery')
+  process.env.debug && console.debug(hits.map(checkedHitToWorkUnit))
   core.setOutput('hits', JSON.stringify(hits.map(checkedHitToWorkUnit)))
 }

@@ -12,15 +12,12 @@ on:
 jobs:
   discovery: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
     outputs:
       hits: ${{ steps.discovery.outputs.hits }}
     steps:
       - uses: actions/checkout@v3
       - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@v22
+        uses: nixbuild/nix-quick-install-action@v24
         with:
           nix_conf: |
             experimental-features = nix-command flakes
@@ -31,17 +28,13 @@ jobs:
         id: discovery
         with:
           attrPaths: ci.x86_64-linux.default, packages.x86_64-linux
-          nixStoreCachingEnabled: false
-          nixEvalCacheCachingEnabled: false
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+          debug: true
+          #nixStoreCachingEnabled: false
+          #nixEvalCacheCachingEnabled: false
 
   execute-targets:
     name: "${{ matrix.target.attrPath }}"
     needs: [discovery]
-    permissions:
-      actions: read
-      contents: read
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -50,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@v22
+        uses: nixbuild/nix-quick-install-action@v24
         with:
           nix_conf: |
             experimental-features = nix-command flakes
@@ -61,6 +54,4 @@ jobs:
         id: worker
         with:
           target: ${{ toJSON(matrix.target) }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 

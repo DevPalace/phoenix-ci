@@ -13,7 +13,7 @@
     "package": "npm run build && ncc build --source-map --license licenses.txt && cp ./src/discovery/eval.nix ./dist",
     "test": "jest",
     "build-test": "npm run build && jest",
-    "precommit": "npm run lint-fix ; npm run test && npm run package",
+    "precommit": "npm run lint-fix ; npm run test && npm run package && git add dist && git status",
     "all": "npm run build && npm run format && npm run lint && npm run package && npm test"
   },
   "repository": {
@@ -28,7 +28,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@actions/cache": "^3.2.1",
+    "@actions/cache": "file:src/toolkit-cache-clone",
     "@actions/core": "^1.10.0",
     "@actions/http-client": "^2.1.0",
     "@mojotech/json-type-validation": "^3.1.0"
