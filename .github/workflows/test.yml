@@ -28,6 +28,7 @@ jobs:
         id: discovery
         with:
           attrPaths: ci.x86_64-linux.default, packages.x86_64-linux
+          debug: true
           #nixStoreCachingEnabled: false
           #nixEvalCacheCachingEnabled: false
 

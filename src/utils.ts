@@ -1,7 +1,6 @@
 import * as core from '@actions/core'
 import Path from 'path'
 
-const env = process.env
 export const throwErr = (errorMessage: string): never => {
   throw new Error(errorMessage)
 }
@@ -21,11 +20,4 @@ export async function logTimeTaken<T>(name: string, fn: () => Promise<T>): Promi
   console.timeEnd(name)
   core.endGroup()
   return result
-}
-
-export const getEvalStoreDir = (): string => {
-  const stateBaseDir = env.XDG_STATE_HOME
-  return stateBaseDir
-    ? Path.join(stateBaseDir, 'nix-eval-store') //
-    : Path.join(env.HOME ?? '', '.local/state/nix-eval-store')
 }

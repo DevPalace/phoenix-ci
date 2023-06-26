@@ -2,7 +2,6 @@ import * as cache from '@actions/cache'
 import * as core from '@actions/core'
 import * as Path from 'path'
 import {existsSync} from 'fs'
-import {getEvalStoreDir} from './utils'
 
 const env = process.env
 
@@ -10,7 +9,7 @@ const isNixEvalCacheCacheingEnabled = () => core.getBooleanInput('nixEvalCacheCa
 const isNixStoreCacheingEnabled = () => core.getBooleanInput('nixStoreCachingEnabled', {required: true})
 
 type CacheIdArg = string | 'discovery'
-type CacheKeyId = 'eval-store-discovery' | 'eval-cache-discovery' | `nix-store-${CacheIdArg}`
+type CacheKeyId = 'eval-cache-discovery' | `nix-store-${CacheIdArg}`
 
 const getCacheKeys = (id: CacheKeyId): [string, string[]] => {
   const keyBase = `${env.RUNNER_OS}-${env.RUNNER_ARCH}-${id}-`
@@ -53,7 +52,3 @@ export const restoreNixEvalCache = async () => {
   const dir = getNixEvalCacheDir()
   isNixEvalCacheCacheingEnabled() && (await restoreCache('eval-cache-discovery', dir))
 }
-
-export const saveEvalStore = async () => saveCache('eval-store-discovery', getEvalStoreDir())
-
-export const restoreEvalStore = async () => restoreCache('eval-store-discovery', getEvalStoreDir())
